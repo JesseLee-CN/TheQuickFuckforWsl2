@@ -1,32 +1,34 @@
 import re
-from decorator import decorator
+from functools import wraps
 from ..utils import is_app
 from ..shells import shell
 
 
-@decorator
-def git_support(fn, command):
+def git_support(fn):
     """Resolves git aliases and supports testing for both git and hub."""
-    # supports GitHub's `hub` command
-    # which is recommended to be used with `alias git=hub`
-    # but at this point, shell aliases have already been resolved
-    if not is_app(command, 'git', 'hub'):
-        return False
+    @wraps(fn)
+    def wrapper(command, *args, **kwargs):
+        # supports GitHub's `hub` command
+        # which is recommended to be used with `alias git=hub`
+        # but at this point, shell aliases have already been resolved
+        if not is_app(command, 'git', 'hub'):
+            return False
 
-    # perform git aliases expansion
-    if command.output and 'trace: alias expansion:' in command.output:
-        search = re.search("trace: alias expansion: ([^ ]*) => ([^\n]*)",
-                           command.output)
-        alias = search.group(1)
+        # perform git aliases expansion
+        if command.output and 'trace: alias expansion:' in command.output:
+            search = re.search("trace: alias expansion: ([^ ]*) => ([^\n]*)",
+                               command.output)
+            alias = search.group(1)
 
-        # by default git quotes everything, for example:
-        #     'commit' '--amend'
-        # which is surprising and does not allow to easily test for
-        # eg. 'git commit'
-        expansion = ' '.join(shell.quote(part)
-                             for part in shell.split_command(search.group(2)))
-        new_script = re.sub(r"\b{}\b".format(alias), expansion, command.script)
+            # by default git quotes everything, for example:
+            #     'commit' '--amend'
+            # which is surprising and does not allow to easily test for
+            # eg. 'git commit'
+            expansion = ' '.join(shell.quote(part)
+                                 for part in shell.split_command(search.group(2)))
+            new_script = re.sub(r"\b{}\b".format(alias), expansion, command.script)
 
-        command = command.update(script=new_script)
+            command = command.update(script=new_script)
 
-    return fn(command)
+        return fn(command, *args, **kwargs)
+    return wrapper

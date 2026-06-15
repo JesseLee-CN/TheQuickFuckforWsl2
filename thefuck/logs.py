@@ -1,3 +1,4 @@
+from __future__ import annotations
 # -*- encoding: utf-8 -*-
 
 from contextlib import contextmanager
@@ -7,9 +8,14 @@ from traceback import format_exception
 import colorama
 from .conf import settings
 from . import const
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .types import CorrectedCommand, Rule
 
 
-def color(color_):
+def color(color_: str) -> str:
     """Utility for ability to disabling colored output."""
     if settings.no_colors:
         return ''
@@ -17,7 +23,7 @@ def color(color_):
         return color_
 
 
-def warn(title):
+def warn(title: str) -> None:
     sys.stderr.write(u'{warn}[WARN] {title}{reset}\n'.format(
         warn=color(colorama.Back.RED + colorama.Fore.WHITE
                    + colorama.Style.BRIGHT),
@@ -25,7 +31,7 @@ def warn(title):
         title=title))
 
 
-def exception(title, exc_info):
+def exception(title: str, exc_info: Any) -> None:
     sys.stderr.write(
         u'{warn}[WARN] {title}:{reset}\n{trace}'
         u'{warn}----------------------------{reset}\n\n'.format(
@@ -36,18 +42,18 @@ def exception(title, exc_info):
             trace=''.join(format_exception(*exc_info))))
 
 
-def rule_failed(rule, exc_info):
+def rule_failed(rule: Rule, exc_info: Any) -> None:
     exception(u'Rule {}'.format(rule.name), exc_info)
 
 
-def failed(msg):
+def failed(msg: str) -> None:
     sys.stderr.write(u'{red}{msg}{reset}\n'.format(
         msg=msg,
         red=color(colorama.Fore.RED),
         reset=color(colorama.Style.RESET_ALL)))
 
 
-def show_corrected_command(corrected_command):
+def show_corrected_command(corrected_command: CorrectedCommand) -> None:
     sys.stderr.write(u'{prefix}{bold}{script}{reset}{side_effect}\n'.format(
         prefix=const.USER_COMMAND_MARK,
         script=corrected_command.script,
@@ -56,7 +62,7 @@ def show_corrected_command(corrected_command):
         reset=color(colorama.Style.RESET_ALL)))
 
 
-def confirm_text(corrected_command):
+def confirm_text(corrected_command: CorrectedCommand) -> None:
     sys.stderr.write(
         (u'{prefix}{clear}{bold}{script}{reset}{side_effect} '
          u'[{green}enter{reset}/{blue}↑{reset}/{blue}↓{reset}'
@@ -72,7 +78,7 @@ def confirm_text(corrected_command):
             blue=color(colorama.Fore.BLUE)))
 
 
-def debug(msg):
+def debug(msg: str) -> None:
     if settings.debug:
         sys.stderr.write(u'{blue}{bold}DEBUG:{reset} {msg}\n'.format(
             msg=msg,
@@ -82,7 +88,7 @@ def debug(msg):
 
 
 @contextmanager
-def debug_time(msg):
+def debug_time(msg: str) -> Iterator[None]:
     started = datetime.now()
     try:
         yield
@@ -90,7 +96,7 @@ def debug_time(msg):
         debug(u'{} took: {}'.format(msg, datetime.now() - started))
 
 
-def how_to_configure_alias(configuration_details):
+def how_to_configure_alias(configuration_details: Any) -> None:
     print(u"Seems like {bold}fuck{reset} alias isn't configured!".format(
         bold=color(colorama.Style.BRIGHT),
         reset=color(colorama.Style.RESET_ALL)))
@@ -114,7 +120,7 @@ def how_to_configure_alias(configuration_details):
     print(u'More details - https://github.com/nvbn/thefuck#manual-installation')
 
 
-def already_configured(configuration_details):
+def already_configured(configuration_details: Any) -> None:
     print(
         u"Seems like {bold}fuck{reset} alias already configured!\n"
         u"For applying changes run {bold}{reload}{reset}"
@@ -124,7 +130,7 @@ def already_configured(configuration_details):
             reload=configuration_details.reload))
 
 
-def configured_successfully(configuration_details):
+def configured_successfully(configuration_details: Any) -> None:
     print(
         u"{bold}fuck{reset} alias configured successfully!\n"
         u"For applying changes run {bold}{reload}{reset}"
@@ -134,7 +140,7 @@ def configured_successfully(configuration_details):
             reload=configuration_details.reload))
 
 
-def version(thefuck_version, python_version, shell_info):
+def version(thefuck_version: str, python_version: str, shell_info: str) -> None:
     sys.stderr.write(
         u'The Fuck {} using Python {} and {}\n'.format(thefuck_version,
                                                        python_version,

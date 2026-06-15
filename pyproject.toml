@@ -31,17 +31,19 @@ classifiers = [
 dependencies = [
     "psutil",
     "colorama",
-    "six",
-    "decorator",
     "pyte",
     "backports.shutil-get-terminal-size; python_version < '3.3'",
     "pathlib2; python_version < '3.4'",
     "win-unicode-console; sys_platform == 'win32'",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-mock>=3.0"]
+
 [project.urls]
-Homepage = "https://github.com/nvbn/thefuck"
-Repository = "https://github.com/nvbn/thefuck"
+Homepage = "https://github.com/JesseLee-CN/TheQuickFuckforWsl2"
+Repository = "https://github.com/JesseLee-CN/TheQuickFuckforWsl2"
+"Original Repository" = "https://github.com/nvbn/thefuck"
 
 [project.scripts]
 thefuck = "thefuck.entrypoints.main:main"
@@ -49,3 +51,7 @@ fuck = "thefuck.entrypoints.not_configured:main"
 
 [tool.setuptools.packages.find]
 include = ["thefuck*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]

@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 # -*- encoding: utf-8 -*-
 
 
 class _GenConst(object):
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self._name = name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return u'<const: {}>'.format(self._name)
 
 

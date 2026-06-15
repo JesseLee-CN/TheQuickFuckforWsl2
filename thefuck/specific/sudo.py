@@ -1,18 +1,19 @@
-import six
-from decorator import decorator
+from functools import wraps
 
 
-@decorator
-def sudo_support(fn, command):
+def sudo_support(fn):
     """Removes sudo before calling fn and adds it after."""
-    if not command.script.startswith('sudo '):
-        return fn(command)
+    @wraps(fn)
+    def wrapper(command, *args, **kwargs):
+        if not command.script.startswith('sudo '):
+            return fn(command, *args, **kwargs)
 
-    result = fn(command.update(script=command.script[5:]))
+        result = fn(command.update(script=command.script[5:]), *args, **kwargs)
 
-    if result and isinstance(result, six.string_types):
-        return u'sudo {}'.format(result)
-    elif isinstance(result, list):
-        return [u'sudo {}'.format(x) for x in result]
-    else:
-        return result
+        if result and isinstance(result, str):
+            return u'sudo {}'.format(result)
+        elif isinstance(result, list):
+            return [u'sudo {}'.format(x) for x in result]
+        else:
+            return result
+    return wrapper

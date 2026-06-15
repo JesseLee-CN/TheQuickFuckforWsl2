@@ -1,7 +1,20 @@
+"""Configuration module for thefuck.
+
+.. note::
+
+    ``settings`` is a module-level global (module singleton pattern).
+    This is an intentional design choice to avoid threading a
+    configuration object through every function signature in the
+    ~127 rule files. Tests should call ``settings.init(...)`` to
+    configure, or monkey-patch ``conf.settings`` in test setup.
+"""
+
+from __future__ import annotations
+
 import importlib.util
 
 
-def _load_source(name, path):
+def _load_source(name: str, path: str) -> Any:
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -9,20 +22,21 @@ def _load_source(name, path):
 
 import os
 import sys
+from collections.abc import Iterator
+from typing import Any
 from warnings import warn
-from six import text_type
 from . import const
 from .system import Path
 
 
 class Settings(dict):
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         return self.get(item)
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key: str, value: Any) -> None:
         self[key] = value
 
-    def init(self, args=None):
+    def init(self, args: Any = None) -> None:
         """Fills `settings` with values from `settings.py` and env."""
         from .logs import exception
 
@@ -41,7 +55,7 @@ class Settings(dict):
 
         self.update(self._settings_from_args(args))
 
-    def _init_settings_file(self):
+    def _init_settings_file(self) -> None:
         settings_path = self.user_dir.joinpath('settings.py')
         if not settings_path.is_file():
             with settings_path.open(mode='w') as settings_file:
@@ -49,7 +63,7 @@ class Settings(dict):
                 for setting in const.DEFAULT_SETTINGS.items():
                     settings_file.write(u'# {} = {}\n'.format(*setting))
 
-    def _get_user_dir_path(self):
+    def _get_user_dir_path(self) -> Path:
         """Returns Path object representing the user config resource"""
         xdg_config_home = os.environ.get('XDG_CONFIG_HOME', '~/.config')
         user_dir = Path(xdg_config_home, 'thefuck').expanduser()
@@ -63,7 +77,7 @@ class Settings(dict):
         else:
             return user_dir
 
-    def _setup_user_dir(self):
+    def _setup_user_dir(self) -> None:
         """Returns user config dir, create it when it doesn't exist."""
         user_dir = self._get_user_dir_path()
 
@@ -72,7 +86,7 @@ class Settings(dict):
             rules_dir.mkdir(parents=True)
         self.user_dir = user_dir
 
-    def _settings_from_file(self):
+    def _settings_from_file(self) -> dict[str, Any]:
         """Loads settings from file."""
         settings = _load_source(
             'settings', str(self.user_dir.joinpath('settings.py')))
@@ -80,14 +94,14 @@ class Settings(dict):
                 for key in const.DEFAULT_SETTINGS.keys()
                 if hasattr(settings, key)}
 
-    def _rules_from_env(self, val):
+    def _rules_from_env(self, val: str) -> list[str]:
         """Transforms rules list from env-string to python."""
         val = val.split(':')
         if 'DEFAULT_RULES' in val:
             val = const.DEFAULT_RULES + [rule for rule in val if rule != 'DEFAULT_RULES']
         return val
 
-    def _priority_from_env(self, val):
+    def _priority_from_env(self, val: str) -> Iterator[tuple[str, int]]:
         """Gets priority pairs from env."""
         for part in val.split(':'):
             try:
@@ -96,7 +110,7 @@ class Settings(dict):
             except ValueError:
                 continue
 
-    def _val_from_env(self, env, attr):
+    def _val_from_env(self, env: str, attr: str) -> Any:
         """Transforms env-strings to python."""
         val = os.environ[env]
         if attr in ('rules', 'exclude_rules'):
@@ -114,13 +128,13 @@ class Settings(dict):
         else:
             return val
 
-    def _settings_from_env(self):
+    def _settings_from_env(self) -> dict[str, Any]:
         """Loads settings from env."""
         return {attr: self._val_from_env(env, attr)
                 for env, attr in const.ENV_TO_ATTR.items()
                 if env in os.environ}
 
-    def _settings_from_args(self, args):
+    def _settings_from_args(self, args: Any) -> dict[str, Any]:
         """Loads settings from args."""
         if not args:
             return {}
@@ -135,4 +149,4 @@ class Settings(dict):
         return from_args
 
 
-settings = Settings(const.DEFAULT_SETTINGS)
+settings: Settings = Settings(const.DEFAULT_SETTINGS)

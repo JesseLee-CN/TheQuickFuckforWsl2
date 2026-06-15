@@ -1,3 +1,4 @@
+from __future__ import annotations
 # -*- encoding: utf-8 -*-
 
 import sys
@@ -6,9 +7,12 @@ from .exceptions import NoRuleMatched
 from .system import get_key
 from .utils import get_alias
 from . import logs, const
+from collections.abc import Iterable, Iterator
+from typing import Any
+from .types import CorrectedCommand
 
 
-def read_actions():
+def read_actions() -> Iterator[Any]:
     """Yields actions for pressed keys."""
     while True:
         key = get_key()
@@ -27,45 +31,40 @@ def read_actions():
 class CommandSelector(object):
     """Helper for selecting rule from rules list."""
 
-    def __init__(self, commands):
-        """:type commands: Iterable[thefuck.types.CorrectedCommand]"""
-        self._commands_gen = commands
+    def __init__(self, commands: Iterable[CorrectedCommand]) -> None:
+        self._commands_gen: Iterable[CorrectedCommand] = commands
+        self._commands: list[CorrectedCommand]
         try:
             self._commands = [next(self._commands_gen)]
         except StopIteration:
             raise NoRuleMatched
-        self._realised = False
-        self._index = 0
+        self._realised: bool = False
+        self._index: int = 0
 
-    def _realise(self):
+    def _realise(self) -> None:
         if not self._realised:
             self._commands += list(self._commands_gen)
             self._realised = True
 
-    def next(self):
+    def next(self) -> None:
         self._realise()
         self._index = (self._index + 1) % len(self._commands)
 
-    def previous(self):
+    def previous(self) -> None:
         self._realise()
         self._index = (self._index - 1) % len(self._commands)
 
     @property
-    def value(self):
-        """:rtype thefuck.types.CorrectedCommand"""
+    def value(self) -> CorrectedCommand:
         return self._commands[self._index]
 
 
-def select_command(corrected_commands):
+def select_command(corrected_commands: Iterable[CorrectedCommand]) -> CorrectedCommand | None:
     """Returns:
 
      - the first command when confirmation disabled;
      - None when ctrl+c pressed;
      - selected command.
-
-    :type corrected_commands: Iterable[thefuck.types.CorrectedCommand]
-    :rtype: thefuck.types.CorrectedCommand | None
-
     """
     try:
         selector = CommandSelector(corrected_commands)

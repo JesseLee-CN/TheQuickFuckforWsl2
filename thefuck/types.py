@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import importlib.util
 
 
-def _load_source(name, path):
+def _load_source(name: str, path: str) -> Any:
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+from typing import TYPE_CHECKING, Any
+from collections.abc import Callable, Iterable, Iterator
 
 import os
 import sys
@@ -18,31 +23,30 @@ from .utils import get_alias, format_raw_script
 from .output_readers import get_output
 
 
+if TYPE_CHECKING:
+    from .system import Path
+
+
 class Command(object):
     """Command that should be fixed."""
 
-    def __init__(self, script, output):
-        """Initializes command with given values.
-
-        :type script: basestring
-        :type output: basestring
-
-        """
+    def __init__(self, script: str, output: str) -> None:
+        """Initializes command with given values."""
         self.script = script
         self.output = output
 
     @property
-    def stdout(self):
+    def stdout(self) -> str:
         logs.warn('`stdout` is deprecated, please use `output` instead')
         return self.output
 
     @property
-    def stderr(self):
+    def stderr(self) -> str:
         logs.warn('`stderr` is deprecated, please use `output` instead')
         return self.output
 
     @property
-    def script_parts(self):
+    def script_parts(self) -> list[str]:
         if not hasattr(self, '_script_parts'):
             try:
                 self._script_parts = shell.split_command(self.script)
@@ -53,35 +57,25 @@ class Command(object):
 
         return self._script_parts
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Command):
             return (self.script, self.output) == (other.script, other.output)
         else:
             return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return u'Command(script={}, output={})'.format(
             self.script, self.output)
 
-    def update(self, **kwargs):
-        """Returns new command with replaced fields.
-
-        :rtype: Command
-
-        """
+    def update(self, **kwargs: str) -> Command:
+        """Returns new command with replaced fields."""
         kwargs.setdefault('script', self.script)
         kwargs.setdefault('output', self.output)
         return Command(**kwargs)
 
     @classmethod
-    def from_raw_script(cls, raw_script):
-        """Creates instance of `Command` from a list of script parts.
-
-        :type raw_script: [basestring]
-        :rtype: Command
-        :raises: EmptyCommand
-
-        """
+    def from_raw_script(cls, raw_script: list[str]) -> Command:
+        """Creates instance of `Command` from a list of script parts."""
         script = format_raw_script(raw_script)
         if not script:
             raise EmptyCommand
@@ -94,20 +88,10 @@ class Command(object):
 class Rule(object):
     """Rule for fixing commands."""
 
-    def __init__(self, name, match, get_new_command,
-                 enabled_by_default, side_effect,
-                 priority, requires_output):
-        """Initializes rule with given fields.
-
-        :type name: basestring
-        :type match: (Command) -> bool
-        :type get_new_command: (Command) -> (basestring | [basestring])
-        :type enabled_by_default: boolean
-        :type side_effect: (Command, basestring) -> None
-        :type priority: int
-        :type requires_output: bool
-
-        """
+    def __init__(self, name: str, match: Callable[[Command], bool], get_new_command: Callable[[Command], str | list[str]],
+                 enabled_by_default: bool, side_effect: Callable[[Command, str], None] | None,
+                 priority: int, requires_output: bool) -> None:
+        """Initializes rule with given fields."""
         self.name = name
         self.match = match
         self.get_new_command = get_new_command
@@ -116,7 +100,7 @@ class Rule(object):
         self.priority = priority
         self.requires_output = requires_output
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Rule):
             return ((self.name, self.match, self.get_new_command,
                      self.enabled_by_default, self.side_effect,
@@ -127,7 +111,7 @@ class Rule(object):
         else:
             return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return 'Rule(name={}, match={}, get_new_command={}, ' \
                'enabled_by_default={}, side_effect={}, ' \
                'priority={}, requires_output={})'.format(
@@ -136,13 +120,8 @@ class Rule(object):
                    self.priority, self.requires_output)
 
     @classmethod
-    def from_path(cls, path):
-        """Creates rule instance from path.
-
-        :type path: pathlib.Path
-        :rtype: Rule
-
-        """
+    def from_path(cls, path: Path) -> Rule | None:
+        """Creates rule instance from path."""
         name = path.name[:-3]
         if name in settings.exclude_rules:
             logs.debug(u'Ignoring excluded rule: {}'.format(name))
@@ -162,25 +141,16 @@ class Rule(object):
                    getattr(rule_module, 'requires_output', True))
 
     @property
-    def is_enabled(self):
-        """Returns `True` when rule enabled.
-
-        :rtype: bool
-
-        """
+    def is_enabled(self) -> bool:
+        """Returns `True` when rule enabled."""
         return (
             self.name in settings.rules
             or self.enabled_by_default
             and ALL_ENABLED in settings.rules
         )
 
-    def is_match(self, command):
-        """Returns `True` if rule matches the command.
-
-        :type command: Command
-        :rtype: bool
-
-        """
+    def is_match(self, command: Command) -> bool | None:
+        """Returns `True` if rule matches the command."""
         if command.output is None and self.requires_output:
             return False
 
@@ -191,13 +161,8 @@ class Rule(object):
         except Exception:
             logs.rule_failed(self, sys.exc_info())
 
-    def get_corrected_commands(self, command):
-        """Returns generator with corrected commands.
-
-        :type command: Command
-        :rtype: Iterable[CorrectedCommand]
-
-        """
+    def get_corrected_commands(self, command: Command) -> Iterator[CorrectedCommand]:
+        """Returns generator with corrected commands."""
         new_commands = self.get_new_command(command)
         if not isinstance(new_commands, list):
             new_commands = (new_commands,)
@@ -210,19 +175,13 @@ class Rule(object):
 class CorrectedCommand(object):
     """Corrected by rule command."""
 
-    def __init__(self, script, side_effect, priority):
-        """Initializes instance with given fields.
-
-        :type script: basestring
-        :type side_effect: (Command, basestring) -> None
-        :type priority: int
-
-        """
+    def __init__(self, script: str, side_effect: Callable | None, priority: int) -> None:
+        """Initializes instance with given fields."""
         self.script = script
         self.side_effect = side_effect
         self.priority = priority
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Ignores `priority` field."""
         if isinstance(other, CorrectedCommand):
             return (other.script, other.side_effect) == \
@@ -230,14 +189,14 @@ class CorrectedCommand(object):
         else:
             return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return (self.script, self.side_effect).__hash__()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return u'CorrectedCommand(script={}, side_effect={}, priority={})'.format(
             self.script, self.side_effect, self.priority)
 
-    def _get_script(self):
+    def _get_script(self) -> str:
         """Returns fixed commands script.
 
         If `settings.repeat` is `True`, appends command with second attempt
@@ -253,12 +212,8 @@ class CorrectedCommand(object):
         else:
             return self.script
 
-    def run(self, old_cmd):
-        """Runs command from rule for passed command.
-
-        :type old_cmd: Command
-
-        """
+    def run(self, old_cmd: Command) -> None:
+        """Runs command from rule for passed command."""
         if self.side_effect:
             self.side_effect(old_cmd, self.script)
         if settings.alter_history:

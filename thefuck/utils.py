@@ -1,3 +1,4 @@
+from __future__ import annotations
 import atexit
 import os
 import pickle
@@ -5,30 +6,28 @@ import re
 import shelve
 import sys
 import threading
-import six
-from decorator import decorator
+from collections.abc import Callable, Iterable, Iterator
 from difflib import get_close_matches as difflib_get_close_matches
 from functools import wraps
+from typing import Any, TYPE_CHECKING, TypeVar
 from .logs import warn, exception
 from .conf import settings
 from .system import Path
+if TYPE_CHECKING:
+    from .types import Command
 
-DEVNULL = open(os.devnull, 'w')
+DEVNULL: Any = open(os.devnull, 'w')
 
-if six.PY2:
-    import anydbm
-    shelve_open_error = anydbm.error
-else:
-    import dbm
-    shelve_open_error = dbm.error
+import dbm
+shelve_open_error = dbm.error
 
 
-def memoize(fn):
+def memoize(fn: Callable) -> Callable:
     """Caches previous calls to the function."""
     memo = {}
 
     @wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> Any:
         if not memoize.disabled:
             key = pickle.dumps((args, kwargs))
             if key not in memo:
@@ -67,7 +66,7 @@ def _build_executable_cache():
             pass
 
 
-def which(program):
+def which(program: str) -> str | None:
     """Returns the full path to `program` or `None`."""
     global _executable_cache
     if _executable_cache is None:
@@ -79,7 +78,7 @@ def which(program):
     return _executable_cache.get(program)
 
 
-def default_settings(params):
+def default_settings(params: dict) -> Callable:
     """Adds default values to settings if it not presented.
 
     Usage:
@@ -89,14 +88,17 @@ def default_settings(params):
             print(settings.apt)
 
     """
-    def _default_settings(fn, command):
-        for k, w in params.items():
-            settings.setdefault(k, w)
-        return fn(command)
-    return decorator(_default_settings)
+    def _default_settings(fn):
+        @wraps(fn)
+        def wrapper(command, *args, **kwargs):
+            for k, w in params.items():
+                settings.setdefault(k, w)
+            return fn(command, *args, **kwargs)
+        return wrapper
+    return _default_settings
 
 
-def get_closest(word, possibilities, cutoff=0.6, fallback_to_first=True):
+def get_closest(word: str, possibilities: Iterable[str], cutoff: float = 0.6, fallback_to_first: bool = True) -> str | None:
     """Returns closest match or just first from possibilities."""
     possibilities = list(possibilities)
     try:
@@ -106,19 +108,19 @@ def get_closest(word, possibilities, cutoff=0.6, fallback_to_first=True):
             return possibilities[0]
 
 
-def get_close_matches(word, possibilities, n=None, cutoff=0.6):
+def get_close_matches(word: str, possibilities: Iterable[str], n: int | None = None, cutoff: float = 0.6) -> list[str]:
     """Overrides `difflib.get_close_match` to control argument `n`."""
     if n is None:
         n = settings.num_close_matches
     return difflib_get_close_matches(word, possibilities, n, cutoff)
 
 
-def include_path_in_search(path):
+def include_path_in_search(path: str) -> bool:
     return not any(path.startswith(x) for x in settings.excluded_search_path_prefixes)
 
 
 @memoize
-def get_all_executables():
+def get_all_executables() -> list[str]:
     """Returns list of all available executables and aliases."""
     if _executable_cache is None:
         with _executable_cache_lock:
@@ -132,7 +134,7 @@ def get_all_executables():
             if name not in tf_entry_points] + aliases
 
 
-def replace_argument(script, from_, to):
+def replace_argument(script: str, from_: str, to: str) -> str:
     """Replaces command line argument."""
     replaced_in_the_end = re.sub(u' {}$'.format(re.escape(from_)), u' {}'.format(to),
                                  script, count=1)
@@ -143,13 +145,16 @@ def replace_argument(script, from_, to):
             u' {} '.format(from_), u' {} '.format(to), 1)
 
 
-@decorator
-def eager(fn, *args, **kwargs):
-    return list(fn(*args, **kwargs))
+def eager(fn: Callable) -> Callable:
+    """Converts a generator-returning function into a list-returning function."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        return list(fn(*args, **kwargs))
+    return wrapper
 
 
 @eager
-def get_all_matched_commands(stderr, separator='Did you mean'):
+def get_all_matched_commands(stderr: str, separator: str | list[str] = 'Did you mean') -> list[str]:
     if not isinstance(separator, list):
         separator = [separator]
     should_yield = False
@@ -163,7 +168,7 @@ def get_all_matched_commands(stderr, separator='Did you mean'):
                 yield line.strip()
 
 
-def replace_command(command, broken, matched):
+def replace_command(command: Command, broken: str, matched: list[str]) -> list[str]:
     """Helper for *_no_command rules."""
     new_cmds = get_close_matches(broken, matched, cutoff=0.1)
     return [replace_argument(command.script, broken, new_cmd.strip())
@@ -171,7 +176,7 @@ def replace_command(command, broken, matched):
 
 
 @memoize
-def is_app(command, *app_names, **kwargs):
+def is_app(command: Command, *app_names: str, **kwargs: Any) -> bool:
     """Returns `True` if command is call to one of passed app names."""
 
     at_least = kwargs.pop('at_least', 0)
@@ -184,31 +189,33 @@ def is_app(command, *app_names, **kwargs):
     return False
 
 
-def for_app(*app_names, **kwargs):
+def for_app(*app_names: str, **kwargs: Any) -> Callable:
     """Specifies that matching script is for one of app names."""
-    def _for_app(fn, command):
-        if is_app(command, *app_names, **kwargs):
-            return fn(command)
-        else:
-            return False
-
-    return decorator(_for_app)
+    def _for_app(fn):
+        @wraps(fn)
+        def wrapper(command, *args, **kwargs_inner):
+            if is_app(command, *app_names, **kwargs):
+                return fn(command, *args, **kwargs_inner)
+            else:
+                return False
+        return wrapper
+    return _for_app
 
 
 class Cache(object):
     """Lazy read cache and save changes at exit."""
 
-    def __init__(self):
-        self._db = None
+    def __init__(self) -> None:
+        self._db: Any = None
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         try:
             self._setup_db()
         except Exception:
             exception("Unable to init cache", sys.exc_info())
             self._db = {}
 
-    def _setup_db(self):
+    def _setup_db(self) -> None:
         cache_dir = self._get_cache_dir()
         cache_path = Path(cache_dir).joinpath('thefuck').as_posix()
 
@@ -222,7 +229,7 @@ class Cache(object):
 
         atexit.register(self._db.close)
 
-    def _get_cache_dir(self):
+    def _get_cache_dir(self) -> str:
         default_xdg_cache_dir = os.path.expanduser("~/.cache")
         cache_dir = os.getenv("XDG_CACHE_HOME", default_xdg_cache_dir)
 
@@ -236,18 +243,18 @@ class Cache(object):
 
         return cache_dir
 
-    def _get_mtime(self, path):
+    def _get_mtime(self, path: str) -> str:
         try:
             return str(os.path.getmtime(path))
         except OSError:
             return '0'
 
-    def _get_key(self, fn, depends_on, args, kwargs):
+    def _get_key(self, fn: Callable, depends_on: list[str], args: tuple, kwargs: dict) -> str:
         parts = (fn.__module__, repr(fn).split('at')[0],
                  depends_on, args, kwargs)
         return str(pickle.dumps(parts))
 
-    def get_value(self, fn, depends_on, args, kwargs):
+    def get_value(self, fn: Callable, depends_on: list[str], args: tuple, kwargs: dict) -> Any:
         if self._db is None:
             self._init_db()
 
@@ -267,7 +274,7 @@ class Cache(object):
 _cache = Cache()
 
 
-def cache(*depends_on):
+def cache(*depends_on: str) -> Callable:
     """Caches function result in temporary file.
 
     Cache will be expired when modification date of files from `depends_on`
@@ -293,7 +300,7 @@ def cache(*depends_on):
 cache.disabled = False
 
 
-def get_installation_version():
+def get_installation_version() -> str:
     try:
         from importlib.metadata import version
 
@@ -304,12 +311,12 @@ def get_installation_version():
         return pkg_resources.require('thefuck')[0].version
 
 
-def get_alias():
+def get_alias() -> str:
     return os.environ.get('TF_ALIAS', 'fuck')
 
 
 @memoize
-def get_valid_history_without_current(command):
+def get_valid_history_without_current(command: Command) -> list[str]:
     def _not_corrected(history, tf_alias):
         """Returns all lines from history except that comes before `fuck`."""
         previous = None
@@ -331,16 +338,45 @@ def get_valid_history_without_current(command):
             and line.split(' ')[0] in executables]
 
 
-def format_raw_script(raw_script):
+def format_raw_script(raw_script: list[str]) -> str:
     """Creates single script from a list of script parts.
 
     :type raw_script: [basestring]
     :rtype: basestring
 
     """
-    if six.PY2:
-        script = ' '.join(arg.decode('utf-8') for arg in raw_script)
-    else:
-        script = ' '.join(raw_script)
-
+    script = ' '.join(raw_script)
     return script.lstrip()
+
+
+import contextlib  # noqa: E402
+
+
+@contextlib.contextmanager
+def disable_memoize() -> Iterator[None]:
+    """Context manager to temporarily disable memoization (for testing)."""
+    previous = memoize.disabled
+    memoize.disabled = True
+    try:
+        yield
+    finally:
+        memoize.disabled = previous
+
+
+@contextlib.contextmanager
+def disable_cache() -> Iterator[None]:
+    """Context manager to temporarily disable persistent cache (for testing)."""
+    previous = cache.disabled
+    cache.disabled = True
+    try:
+        yield
+    finally:
+        cache.disabled = previous
+
+
+def reset_state() -> None:
+    """Reset all module-level state. Intended for testing."""
+    global _executable_cache
+    _executable_cache = None
+    memoize.disabled = False
+    cache.disabled = False

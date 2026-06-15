@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 class EmptyCommand(Exception):
     """Raised when empty command passed to `thefuck`."""
 

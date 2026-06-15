@@ -1,6 +1,16 @@
 """Package with shell specific actions, each shell class should
 implement `from_shell`, `to_shell`, `app_alias`, `put_to_history` and
 `get_aliases` methods.
+
+.. note::
+
+    ``shell`` is a module-level global (module singleton pattern).
+    It is lazily initialized at import time by auto-detecting the
+    current shell from the process tree (via ``psutil``) or the
+    ``TF_SHELL`` environment variable. This is an intentional design
+    choice to avoid passing a shell instance through every function
+    signature. Tests can override it by setting ``TF_SHELL`` in the
+    environment or by monkey-patching the ``shell`` global.
 """
 import os
 from psutil import Process

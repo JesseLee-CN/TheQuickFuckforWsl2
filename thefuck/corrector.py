@@ -1,13 +1,20 @@
+from __future__ import annotations
 import os
 import sys
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import TYPE_CHECKING
 from .conf import settings
-from .types import Rule
+from .types import Command, CorrectedCommand, Rule
 from .system import Path
 from . import logs
 
+if TYPE_CHECKING:
+    from .system import Path
+    from .types import Command, CorrectedCommand, Rule
 
-def get_loaded_rules(rules_paths):
+
+def get_loaded_rules(rules_paths: list[Path]) -> list[Rule]:
     """Returns all available rules.
 
     :type rules_paths: [Path]
@@ -37,7 +44,7 @@ def get_loaded_rules(rules_paths):
     return results
 
 
-def get_rules_import_paths():
+def get_rules_import_paths() -> Iterable[Path]:
     """Yields all rules import paths.
 
     :rtype: Iterable[Path]
@@ -55,7 +62,7 @@ def get_rules_import_paths():
                 yield contrib_rules
 
 
-def get_rules():
+def get_rules() -> list[Rule]:
     """Returns all enabled rules.
 
     :rtype: [Rule]
@@ -67,7 +74,7 @@ def get_rules():
                   key=lambda rule: rule.priority)
 
 
-def organize_commands(corrected_commands):
+def organize_commands(corrected_commands: Iterable[CorrectedCommand]) -> Iterable[CorrectedCommand]:
     """Yields sorted commands without duplicates.
 
     :type corrected_commands: Iterable[thefuck.types.CorrectedCommand]
@@ -96,7 +103,7 @@ def organize_commands(corrected_commands):
         yield command
 
 
-def get_corrected_commands(command):
+def get_corrected_commands(command: Command) -> Iterable[CorrectedCommand]:
     """Returns generator with sorted and unique corrected commands.
 
     :type command: thefuck.types.Command
