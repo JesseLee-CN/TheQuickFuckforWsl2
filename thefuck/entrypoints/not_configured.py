@@ -9,7 +9,7 @@ import json  # noqa: E402
 from tempfile import gettempdir  # noqa: E402
 import time  # noqa: E402
 from psutil import Process  # noqa: E402
-from .. import logs, const  # noqa: E402
+from .. import display, const  # noqa: E402
 from ..shells import shell  # noqa: E402
 from ..conf import settings  # noqa: E402
 from ..system import Path  # noqa: E402
@@ -101,13 +101,13 @@ def main():
         configuration_details.can_configure_automatically
     ):
         if _is_already_configured(configuration_details):
-            logs.already_configured(configuration_details)
+            display.already_configured(configuration_details)
             return
         elif _is_second_run():
             _configure(configuration_details)
-            logs.configured_successfully(configuration_details)
+            display.configured_successfully(configuration_details)
             return
         else:
             _record_first_run()
 
-    logs.how_to_configure_alias(configuration_details)
+    display.how_to_configure_alias(configuration_details)

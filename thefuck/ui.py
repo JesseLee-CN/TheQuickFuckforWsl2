@@ -6,7 +6,7 @@ from .conf import settings
 from .exceptions import NoRuleMatched
 from .system import get_key
 from .utils import get_alias
-from . import logs, const
+from . import display, const
 from collections.abc import Iterable, Iterator
 from typing import Any
 from .types import CorrectedCommand
@@ -69,26 +69,26 @@ def select_command(corrected_commands: Iterable[CorrectedCommand]) -> CorrectedC
     try:
         selector = CommandSelector(corrected_commands)
     except NoRuleMatched:
-        logs.failed('No fucks given' if get_alias() == 'fuck'
+        display.failed('No fucks given' if get_alias() == 'fuck'
                     else 'Nothing found')
         return
 
     if not settings.require_confirmation:
-        logs.show_corrected_command(selector.value)
+        display.show_corrected_command(selector.value)
         return selector.value
 
-    logs.confirm_text(selector.value)
+    display.confirm_text(selector.value)
 
     for action in read_actions():
         if action == const.ACTION_SELECT:
             sys.stderr.write('\n')
             return selector.value
         elif action == const.ACTION_ABORT:
-            logs.failed('\nAborted')
+            display.failed('\nAborted')
             return
         elif action == const.ACTION_PREVIOUS:
             selector.previous()
-            logs.confirm_text(selector.value)
+            display.confirm_text(selector.value)
         elif action == const.ACTION_NEXT:
             selector.next()
-            logs.confirm_text(selector.value)
+            display.confirm_text(selector.value)

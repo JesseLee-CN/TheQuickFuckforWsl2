@@ -6,7 +6,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def reset_globals() -> None:
     """Reset module-level state before each test."""
-    from thefuck.utils import reset_state
+    from thefuck.cache import reset_state
     reset_state()
     yield
 
@@ -14,7 +14,7 @@ def reset_globals() -> None:
 @pytest.fixture
 def no_memoize():
     """Disable memoization for test isolation."""
-    from thefuck.utils import disable_memoize
+    from thefuck.cache import disable_memoize
     with disable_memoize():
         yield
 

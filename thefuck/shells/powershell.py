@@ -1,5 +1,5 @@
 from subprocess import Popen, PIPE
-from ..utils import DEVNULL
+from ..cache import DEVNULL
 from .generic import Generic, ShellConfiguration
 
 

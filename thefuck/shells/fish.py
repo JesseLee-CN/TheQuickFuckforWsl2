@@ -5,7 +5,7 @@ import sys
 from .. import logs
 from ..conf import settings
 from ..const import ARGUMENT_PLACEHOLDER
-from ..utils import DEVNULL, memoize
+from ..cache import DEVNULL, memoize
 from .generic import Generic
 
 

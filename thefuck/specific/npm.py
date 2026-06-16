@@ -1,6 +1,7 @@
 import re
 from subprocess import Popen, PIPE
-from thefuck.utils import memoize, eager, which
+from thefuck.cache import memoize
+from thefuck.utils import eager, which
 
 npm_available = bool(which('npm'))
 

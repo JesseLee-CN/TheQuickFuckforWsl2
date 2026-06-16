@@ -4,7 +4,7 @@ from tempfile import gettempdir
 from uuid import uuid4
 from ..conf import settings
 from ..const import ARGUMENT_PLACEHOLDER, USER_COMMAND_MARK
-from ..utils import DEVNULL, memoize
+from ..cache import DEVNULL, memoize
 from .generic import Generic
 
 

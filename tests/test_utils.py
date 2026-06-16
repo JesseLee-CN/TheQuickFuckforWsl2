@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import pytest
+from thefuck.cache import memoize, disable_memoize, disable_cache, reset_state
 from thefuck.utils import (
     get_closest, get_close_matches, replace_argument,
     is_app, format_raw_script, get_alias,
     get_all_matched_commands, replace_command,
-    memoize, disable_memoize, disable_cache, reset_state,
     eager, which,
 )
 from thefuck.types import Command
@@ -120,7 +120,7 @@ class TestMemoize:
 
     def test_reset_state(self) -> None:
         # reset_state resets memoize.disabled and _executable_cache
-        from thefuck.utils import memoize, reset_state
+        from thefuck.cache import memoize, reset_state
         # Just verify it doesn't crash and sets disabled=False
         memoize.disabled = True
         reset_state()

@@ -1,7 +1,7 @@
 from subprocess import Popen, PIPE
 from time import time
 import os
-from ..utils import DEVNULL, memoize
+from ..cache import DEVNULL, memoize
 from .generic import Generic
 
 
